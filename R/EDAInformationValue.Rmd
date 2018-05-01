@@ -1,0 +1,132 @@
+---
+title: "Information Value (Weight of Evidence)"
+output:
+  html_document:
+    df_print: paged
+---
+http://multithreaded.stitchfix.com/blog/2015/08/13/weight-of-evidence/
+
+http://ucanalytics.com/blogs/information-value-and-weight-of-evidencebanking-case/
+
+
+The values of the IV statistic can be interpreted as follows. If the IV statistic is:
+ - Less than 0.02, then the predictor is not useful for modeling (separating the Goods from the Bads)
+ - 0.02 to 0.1, then the predictor has only a weak relationship to the Goods/Bads odds ratio
+ - 0.1 to 0.3, then the predictor has a medium strength relationship to the Goods/Bads odds ratio
+ - 0.3 or higher, then the predictor has a strong relationship to the Goods/Bads odds ratio.
+
+1. Data load and preparation. We need target as a numeric binary (0/1) in this analysis and the rest of variables should be factors or numerical not char as they are loaded by default. occupationclasscd and classcd have too many levels for the analysis so targeting encoding bins are used.
+```{r}
+#
+dataset <- read.csv('data/fdata_v1_trgencd.csv',stringsAsFactors = FALSE )
+#spaces
+dataset <- data.frame(lapply(dataset, trimws), stringsAsFactors = FALSE)
+
+target <- 'hasclaim'
+categorical <- c(  
+ 'external_make',
+ 'external_model_trgbin',
+ 'manufacturer',
+ 'model_trgbin',
+ 'registrationstateprovcd',
+ 'vehbodytypecd',
+ 'performancecd',
+ 'restraintcd',
+ 'antitheftcd',
+ 'enginecylinders',
+ 'vehusecd',
+ 'classcd_trgbin',
+ 'carpoolind',
+ 'daylightrunninglightsind',
+ 'passiveseatbeltind',
+ 'programtypecd',
+ 'driverstatuscd',
+ 'licensedstateprovcd',
+ 'relationshiptoinsuredcd',
+ 'scholasticdiscountind',
+ 'mvrstatus',
+ 'maturedriverind',
+ 'drivertrainingind',
+ 'gooddriverind',
+ 'accidentpreventioncourseind',
+ 'persontypecd',
+ 'gendercd',
+ 'maritalstatuscd',
+ 'occupationclasscd_trgbin',
+ 'garageterritory',
+ 'vehnumber',
+ 'drivernumber',
+ 'viol_pointschargedterm',
+ 'acci_pointschargedterm',
+ 'viol_driverpointsnumbercountterm',
+ 'acci_driverpointsnumbercountterm',
+ 'viol_infractioncdcountterm',
+ 'acci_infractioncdcountterm',
+ 'viol_last_infractionage',
+ 'acci_last_infractionage',
+ 'viol_last_convictionage',
+ 'acci_last_convictionage',
+ 'external_engine',
+ 'enginesize',
+ 'enginehorsepower')
+
+continuous <- c(  
+'modelscore',
+ 'external_length_in',
+ 'external_width_in',
+ 'external_height_in',
+ 'external_vehicleage',
+ 'vehicleage',
+ 'ratingvalue',
+ 'estimatedannualdistance',
+ 'odometerreading',
+ 'daysperweekdriven',
+ 'driverage',
+ 'havelicenseage',
+ 'mvrstatusage')
+#we need target as a numeric binary (0/1) in this analysis
+dataset[target] <- sapply(dataset[target], as.numeric)
+dataset[continuous] <- sapply(dataset[continuous], as.numeric)
+dataset[categorical] <- lapply(dataset[categorical], factor)
+```
+2. Calculating Information Value using Information package. The value is converted into % and the final data are saved into a file
+
+```{r}
+library(Information)
+IV <- create_infotables(data = dataset[, c(c(target), categorical, continuous)],  y = target)
+
+IV$Summary$IV <- round(IV$Summary$IV*100,2)
+IV_df <- as.data.frame(IV$Summary)
+
+write.csv(file='results\\information_value.csv', x=IV_df)
+```
+
+As you can see from the output 1 level features are removed from the analysis
+
+3. Not usefull features
+```{r}
+nuf <- IV_df[which(IV_df$IV < 2), ]
+print(nuf[order(nuf$IV), ])
+```
+
+
+
+
+4. Medium  relationships
+
+```{r}
+print(IV_df[which(IV_df$IV > 10), ])
+```
+
+We have only 2 medium strength features for prediction. 
+
+
+
+We can see intersection with the list from first EDA part
+
+6. Some visualization
+
+```{r}
+Information::plot_infotables(IV, IV$Summary$Variable[1:3], same_scales = TRUE)
+```
+

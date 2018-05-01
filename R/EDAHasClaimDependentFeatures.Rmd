@@ -1,0 +1,950 @@
+---
+title: "EDA HasClaim Dependant Features R Notebook"
+output: 
+  html_document:
+    df_print: paged
+---
+
+In this notebook I investigate what features are dependent with target (hasclaim) in order to exclude from the further analysis independent features.
+
+1. Needed Libraries
+```{r}
+# Data visualization
+library(funModeling)
+#mosaic plot
+library(vcd)
+#alluvial plot
+library(alluvial)
+#other
+library(ggplot2)
+#
+library(dplyr)
+
+#measure of association
+library(vcdExtra)
+```
+
+2. Data Load and preprocessing. The data are read as char and should be converted in numerical and factors. 
+```{r}
+#
+dataset <- read.csv('data/fdata_v1_trgencd.csv',stringsAsFactors = FALSE )
+#removing spaces
+dataset <- data.frame(lapply(dataset, trimws), stringsAsFactors = FALSE)
+
+
+target <- 'hasclaim'
+categorical <- c(  
+ 'external_make',
+ 'external_model',
+ 'manufacturer',
+ 'model',
+ 'registrationstateprovcd',
+ 'vehbodytypecd',
+ 'performancecd',
+ 'restraintcd',
+ 'antitheftcd',
+ 'enginecylinders',
+ 'vehusecd',
+ 'classcd',
+ 'carpoolind',
+ 'daylightrunninglightsind',
+ 'passiveseatbeltind',
+ 'programtypecd',
+ 'driverstatuscd',
+ 'licensedstateprovcd',
+ 'relationshiptoinsuredcd',
+ 'scholasticdiscountind',
+ 'mvrstatus',
+ 'maturedriverind',
+ 'drivertrainingind',
+ 'gooddriverind',
+ 'accidentpreventioncourseind',
+ 'persontypecd',
+ 'gendercd',
+ 'maritalstatuscd',
+ 'occupationclasscd')
+
+categorical_encd <- c('external_make_encd',
+ 'external_model_encd',
+ 'manufacturer_encd',
+ 'model_encd',
+ 'registrationstateprovcd_encd',
+ 'vehbodytypecd_encd',
+ 'performancecd_encd',
+ 'restraintcd_encd',
+ 'antitheftcd_encd',
+ 'enginecylinders_encd',
+ 'vehusecd_encd',
+ 'classcd_encd',
+ 'carpoolind_encd',
+ 'daylightrunninglightsind_encd',
+ 'passiveseatbeltind_encd',
+ 'programtypecd_encd',
+ 'driverstatuscd_encd',
+ 'licensedstateprovcd_encd',
+ 'relationshiptoinsuredcd_encd',
+ 'scholasticdiscountind_encd',
+ 'mvrstatus_encd',
+ 'maturedriverind_encd',
+ 'drivertrainingind_encd',
+ 'gooddriverind_encd',
+ 'accidentpreventioncourseind_encd',
+ 'persontypecd_encd',
+ 'gendercd_encd',
+ 'maritalstatuscd_encd',
+ 'occupationclasscd_encd')
+
+categorical_n <- c(
+ 'garageterritory',
+ 'vehnumber',
+ 'drivernumber',
+ 'viol_pointschargedterm',
+ 'acci_pointschargedterm',
+ 'viol_driverpointsnumbercountterm',
+ 'acci_driverpointsnumbercountterm',
+ 'viol_infractioncdcountterm',
+ 'acci_infractioncdcountterm',
+ 'viol_last_infractionage',
+ 'acci_last_infractionage',
+ 'viol_last_convictionage',
+ 'acci_last_convictionage',
+ 'external_engine',
+ 'enginesize',
+ 'enginehorsepower')
+
+target_binned <- c(
+ 'external_make_trgbin',
+ 'external_model_trgbin',
+ 'manufacturer_trgbin',
+ 'model_trgbin',
+ 'registrationstateprovcd_trgbin',
+ 'vehbodytypecd_trgbin',
+ 'performancecd_trgbin',
+ 'restraintcd_trgbin',
+ 'antitheftcd_trgbin',
+ 'enginecylinders_trgbin',
+ 'vehusecd_trgbin',
+ 'classcd_trgbin',
+ 'licensedstateprovcd_trgbin',
+ 'occupationclasscd_trgbin',
+ 'garageterritory_trgbin',
+ 'vehnumber_trgbin',
+ 'drivernumber_trgbin',
+ 'viol_pointschargedterm_trgbin',
+ 'acci_pointschargedterm_trgbin',
+ 'viol_driverpointsnumbercountterm_trgbin',
+ 'acci_driverpointsnumbercountterm_trgbin',
+ 'viol_infractioncdcountterm_trgbin',
+ 'viol_last_infractionage_trgbin',
+ 'acci_last_infractionage_trgbin',
+ 'viol_last_convictionage_trgbin',
+ 'acci_last_convictionage_trgbin',
+ 'external_engine_trgbin',
+ 'enginesize_trgbin',
+ 'enginehorsepower_trgbin')
+
+
+continuous <- c(  'modelscore',
+ 'external_length_in',
+ 'external_width_in',
+ 'external_height_in',
+ 'external_vehicleage',
+ 'vehicleage',
+ 'ratingvalue',
+ 'estimatedannualdistance',
+ 'odometerreading',
+ 'daysperweekdriven',
+ 'driverage',
+ 'havelicenseage',
+ 'mvrstatusage')
+
+
+
+#converting to numerical and factors
+dataset[c(target)] <- lapply(dataset[c(target)], factor)
+#
+dataset[categorical] <- lapply(dataset[categorical], factor)
+dataset[categorical_encd] <- lapply(dataset[categorical_encd], factor)
+dataset[categorical_n] <- lapply(dataset[categorical_n], factor)
+dataset[target_binned] <- lapply(dataset[target_binned], factor)
+#
+dataset[continuous] <- sapply(dataset[continuous], as.numeric)
+
+
+
+```
+
+
+
+3. General Information. Output is saved to a csv files to be analyzed later in Excel
+3.1 Data Structure
+```{r}
+print(str(dataset, list.len=ncol(dataset)))
+dataset_str <- as.data.frame(capture.output(str(dataset, list.len=ncol(dataset))))
+write.csv(file='results/fdata_v1_structure.csv', x=dataset_str)
+```
+
+3.2 Data Summary
+```{r}
+print(summary(dataset))
+dataset_sum <- as.data.frame(unclass((summary(dataset))))
+write.csv(file='results/fdata_v1_summary.csv', x=dataset_sum)
+```
+
+3.3 Data Additional Statistics
+```{r}
+dataset_status <- as.data.frame(df_status(dataset))
+print(dataset_status)
+write.csv(file='results/fdata_v1_status.csv', x=dataset_status)
+```
+
+
+4.There are more then 40 categorical features and to analyze all of them I create functions
+There are 3 function created
+4.1 reduce_cardinality is used to reduce number of levels to simplify analysis and visualization. auto_grouping function from funModeling library is used. It applies clustering regarding the target. The function accepts 2 models: Kmean clustering and hclust.
+
+
+4.2 explore_categorical function prints the feature levels and its numerical codes. the codes are used in the plots and tables to simplify formatting and reaability. 
+
+In the case of a high cardinality column the function prints highest and lowest target group (the groups with the maximum and minimum probability of a claim) and first 10 members of the groups.
+
+In the next step it provides detailed information regarding the levels in relation to the target.
+
+At the end 2 tests are run: ChiSq test to test significance of the relation and Cramer V test to measure the association
+
+
+In the case of high cardinality columns the functions use groups instead of the original levels.
+
+```{r CategoricalFunctions }
+reduce_cardinality <- function (col_name, model, n_groups){
+  
+  
+  g <- auto_grouping(data=dataset, input=col_name, model=model, target=target, n_groups=n_groups)
+  
+  gt <- as.data.frame(g$df_equivalence)
+  
+  col_name_rec <- paste(col_name,'rec', sep='_')
+  
+  
+  
+  return (gt[[col_name_rec]][match(dataset[[col_name]], gt[[col_name]])])
+}
+
+explore_categorical <- function (col_name, suffix, sig_level){
+  print("--------------------------------------------------------")
+  print ("Levels and codes in charts:")
+  print("--------------------------------------------------------")
+  if (nlevels(dataset[[col_name]])<=20) {
+    print(dataset %>% 
+            select(col_name, paste(col_name,suffix, sep='')) %>% 
+            distinct %>% 
+            as.data.frame())
+  }
+  else {
+    cat <- as.data.frame(categ_analysis(data=dataset,input=paste(col_name,suffix, sep=''), target=target))
+    max_grp <- cat[which(cat$mean_target == max(cat$mean_target)), c(paste(col_name,suffix, sep=''))]
+    min_grp <- cat[which(cat$mean_target == min(cat$mean_target)), c(paste(col_name,suffix, sep=''))]
+    print("........................................................")
+    print('Highest Target Mean levels (first 20 detail levels or all) in ')
+    print(max_grp)
+    print("........................................................")
+    print(head(unique(dataset[which(dataset[[paste(col_name,suffix, sep='')]] == max_grp), ][col_name]),20))
+    print("........................................................")
+    print('Lowest Target Mean levels  (first 20 detail levels or all) in ')
+    print(min_grp)
+    print("........................................................")
+    print(head(unique(dataset[which(dataset[[paste(col_name,suffix, sep='')]] == min_grp), ][col_name]),20))
+  }
+  print("--------------------------------------------------------")
+  print ("Detail levels analysis: ")
+  print("--------------------------------------------------------")
+  # It returns 
+  #the total positive cases (sum_target) - num of 1 in cross_plot; 
+  #pecentage of total positive cases (perc_target) that fell in that category (this column sums 1); 
+  #likelihood or mean of positive cases (mean_target) measured
+  #by the total positive cases over total cases in that category - % of 1 in cross_plot; 
+  #quantity of rows of that category (q_rows) ?
+  #and in percentage (perc_rows) -this column sums 1.?
+  
+  print(categ_analysis(data=dataset,input=paste(col_name,suffix, sep=''), target=target))
+  print("--------------------------------------------------------")
+  print("Chi-squared test of independence with target (null hypothesis):")
+  print("--------------------------------------------------------")
+  #Let's use  the chi-squared test to check
+  #if there is any dependency between gendercd and hasclaim
+  #The null hypothesis of the chi-squared test is that the two variables are independent 
+  #and the alternate hypothesis is that they are related.
+  
+  
+  t <- chisq.test(dataset[,paste(col_name,suffix, sep='')], dataset[,target])
+  print(t)
+  print (paste('Significance level:',sig_level,sep=' '))
+         if (t$p.value<sig_level) {
+           print("P-value is less then significance level and we can reject the null hypothesis of independence between  the column and target.")
+         }
+         else {
+           print("Significance level is less the P-value. We can not reject the null hypothesis of independence between  the column and target.")
+         }
+         
+  #Since we get a p-Value less than the significance level of 0.05, 
+  #we reject the null hypothesis and conclude that the gendercd and hasclaim are 
+  #in fact dependent. 
+         
+  #measure of Association: Phi-Coefficient and Cramer's V coefficient
+  print("--------------------------------------------------------")
+  print("Measure of Association: Phi-Coefficient and Cramer's V coefficient:")
+  print("--------------------------------------------------------")
+  a <- assocstats(table(dataset[,paste(col_name,suffix, sep='')], dataset[,target]))
+  print(a)
+         
+}
+
+
+
+```
+
+
+5. Categorical features analysis. The loop run ChiSq and Cramer V tests for each categorical variable and save the result in a vector for further analysis. If it's high cardinality column, a grouped column is created first using Kmeans and Hclust to be used in the further analysis.
+
+Detaled level information  are printed for each feature.
+```{r MainAnalysis}
+categorical_stats_names <- c()
+categorical_stats_num_levels <- c()
+categorical_stats_grp_model <- c()
+categorical_stats_pvals <- c()
+categorical_stats_cramersV <- c()
+#categorical
+features_to_explore <- c(categorical,categorical_n)
+j <- 1
+for (i in 1:length(features_to_explore)) { 
+  print("********************************************************")
+  print (features_to_explore[i])
+  print (nlevels(dataset[[features_to_explore[i]]]))
+  print ("levels")
+  print("********************************************************")
+  categorical_stats_names[j] <- features_to_explore[i]
+  categorical_stats_num_levels[j] <- nlevels(dataset[[features_to_explore[i]]])
+  if ((nlevels(dataset[[features_to_explore[i]]])>1)&(nlevels(dataset[[features_to_explore[i]]])<=5)) {
+    #acceptable number of levels - explore
+    t <- chisq.test(dataset[,features_to_explore[i]], dataset[,target])
+    categorical_stats_pvals[j] <- t$p.value
+    a <- assocstats(table(dataset[,features_to_explore[i]], dataset[,target]))
+    categorical_stats_cramersV[j] <- a$cramer
+    #details
+    #if the feature was encoded then encd suffix is used
+    #otherwise - no suffix
+    if (features_to_explore[i] %in% categorical_encd)
+      explore_categorical(features_to_explore[i],'_encd',0.05)
+    else
+      explore_categorical(features_to_explore[i],'',0.05)
+    #plot_categorical(categorical[i],'encd')
+    #dummy value - we do not group in this case
+    categorical_stats_grp_model[j] <- 'none'
+  }
+else if (nlevels(dataset[[features_to_explore[i]]]) == 1){
+  #not enough levels - ignore
+  categorical_stats_pvals[j] <- 1
+  categorical_stats_cramersV[j] <- 0
+  categorical_stats_grp_model[j] <- 'none'
+}
+else {
+  categorical_stats_grp_model[j] <- 'kmeans'
+  categorical_stats_pvals[j] <- 1
+  categorical_stats_cramersV[j] <- 0
+  #more then 5 levels - reduce cardinality
+  print("========================================================")
+  print (" ")
+  print ("Kmeans clustering")
+  print (" ")
+  print("========================================================")
+  try({
+  dataset[[paste(features_to_explore[i], 'kmeans',sep='_')]] <- reduce_cardinality (features_to_explore[i],'kmeans',5)
+  #explore
+  t <- chisq.test(dataset[,paste(features_to_explore[i], 'kmeans',sep='_')], dataset[,target])
+  categorical_stats_pvals[j] <- t$p.value
+  a <- assocstats(table(dataset[,paste(features_to_explore[i], 'kmeans',sep='_')], dataset[,target]))
+  categorical_stats_cramersV[j] <- a$cramer
+  #details
+  explore_categorical(features_to_explore[i],'_kmeans',0.05)
+  #plot_categorical(categorical[i],'kmeans')
+ })
+  #one more way of grouping - hclust
+  print("========================================================")
+  print (" ")
+  print ("HClust clustering")
+  print (" ")
+  print("========================================================")
+  j <- j + 1
+  #for the same feature one more row 
+  categorical_stats_names[j] <- features_to_explore[i]
+  categorical_stats_num_levels[j] <- nlevels(dataset[[features_to_explore[i]]])
+  #more then 5 levels - reduce cardinality
+  categorical_stats_grp_model[j] <- 'hclust'
+  categorical_stats_pvals[j] <- 1
+  categorical_stats_cramersV[j] <- 0  
+  try({
+  dataset[[paste(features_to_explore[i], 'hclust',sep='_')]] <- reduce_cardinality (features_to_explore[i],'hclust',5)
+  #explore
+  t <- chisq.test(dataset[,paste(features_to_explore[i], 'hclust',sep='_')], dataset[,target])
+  categorical_stats_pvals[j] <- t$p.value
+  a <- assocstats(table(dataset[,paste(features_to_explore[i], 'hclust',sep='_')], dataset[,target]))
+  categorical_stats_cramersV[j] <- a$cramer
+  #details
+  explore_categorical(features_to_explore[i],'_hclust',0.05)
+  #plot_categorical(categorical[i],'hclust')
+  })
+  ###
+  #one more way of grouping - target encoding
+  print("========================================================")
+  print (" ")
+  print ("Target Encoded columns")
+  print (" ")
+  print("========================================================")
+  j <- j + 1
+  #for the same feature one more row 
+  categorical_stats_names[j] <- features_to_explore[i]
+  categorical_stats_num_levels[j] <- nlevels(dataset[[features_to_explore[i]]])
+  #more then 5 levels - reduce cardinality
+  categorical_stats_grp_model[j] <- 'trgbin'
+  categorical_stats_pvals[j] <- 1
+  categorical_stats_cramersV[j] <- 0  
+  try({
+  #cardinality already reduced in a Python program via target encoding and binning
+  #explore
+  t <- chisq.test(dataset[,paste(features_to_explore[i], 'trgbin',sep='_')], dataset[,target])
+  categorical_stats_pvals[j] <- t$p.value
+  a <- assocstats(table(dataset[,paste(features_to_explore[i], 'trgbin',sep='_')], dataset[,target]))
+  categorical_stats_cramersV[j] <- a$cramer
+  #details
+  explore_categorical(features_to_explore[i],'_trgbin',0.05)
+  })
+  ###
+}
+j <- j + 1
+}
+```
+
+
+5.2 Finalizing our finding in a table
+
+```{r}
+categorical_features_stats <- data.frame(categorical_stats_names,categorical_stats_num_levels,categorical_stats_grp_model,categorical_stats_pvals,categorical_stats_cramersV)
+names(categorical_features_stats) <- c('Feature', 'NumLevels', 'Grouping','Pvalue','CramerV')
+write.csv(file='results/categorical_features_stats.csv', x=categorical_features_stats)
+
+```
+
+5.3 Not Significant Categorical Features
+```{r}
+print(categorical_features_stats[which(categorical_features_stats$Pvalue >=0.05), ])
+```
+
+5.4 First 10 Significant categorical Features
+
+```{r}
+significant_features <- categorical_features_stats[which(categorical_features_stats$Pvalue < 0.05), ]
+
+print(head(significant_features[rev(order(significant_features$CramerV)), ],10))
+```
+
+5.6 Let's look into more details of significant features
+
+5.6.1 Visualization functions
+
+multiplot is used to combine plots in a grid
+
+plot_categorical builds 2 charts to represent the levels of the feature and proportion or probabilty of a claim. 
+
+```{r}
+multiplot <- function(..., plotlist = NULL, file, cols = 1, layout = NULL) {
+  require(grid)
+
+  plots <- c(list(...), plotlist)
+
+  numPlots = length(plots)
+
+  if (is.null(layout)) {
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                    ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+
+  if (numPlots == 1) {
+    print(plots[[1]])
+
+  } else {
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+
+    for (i in 1:numPlots) {
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+plot_categorical <- function(col_name) {
+  
+p1 = bayesian_plot(data=dataset, input=col_name, target=target)
+p2 = cross_plot(data=dataset, str_input=col_name, str_target=target)
+multiplot(p1,p2, cols=1)
+}
+
+```
+
+5.6.2 MVRStatus Claim
+
+```{r}
+plot_categorical('mvrstatus')
+```
+
+
+Unknown or missing info drivers have the highest claim probability and Renewal Clear the lowest.
+
+
+GoodDriver Indicator
+```{r}
+plot_categorical('gooddriverind')
+```
+
+There is just one line with unknown ('~') value and it has claim. Let's just ignore it.
+Not good drivers have the higest claim probability and percent
+
+
+
+Accident Prevention Course Indicator
+```{r}
+plot_categorical('accidentpreventioncourseind')
+```
+
+Yes indicator has the highest claim probability. If the course was taken after a previous accident it makes sense.
+
+Driver Training
+
+
+```{r}
+plot_categorical('drivertrainingind')
+```
+
+Almost equal probability of a claim with or without Driver Training but percent of claims is a little bit higher for driver with training
+
+
+Scholasticdiscountind
+
+```{r}
+plot_categorical('scholasticdiscountind')
+```
+
+Yes and No have approximately the same percent and probability of claims.
+
+Relationship To Insured
+
+```{r}
+plot_categorical('relationshiptoinsuredcd')
+```
+
+Marital Status
+
+```{r}
+plot_categorical('maritalstatuscd')
+```
+
+
+Carpoolind
+
+```{r}
+plot_categorical('carpoolind')
+```
+
+Looks like bad drivers do not carpool. But the difference is very small.
+
+
+
+High Cardinality Significant Features
+
+In general, targeting encoding and then grouping resulting in less p-values and biggest CramerV values but there is not a big difference and reliability of the comparizon.
+(There are too many errors in calculation Chi-test).
+
+```{r}
+print_group_content <- function (col_name, suffix) {
+  cat <- as.data.frame(categ_analysis(data=dataset,input=paste(col_name,suffix, sep=''), target=target))
+    max_grp <- cat[which(cat$mean_target == max(cat$mean_target)), c(paste(col_name,suffix, sep=''))]
+    min_grp <- cat[which(cat$mean_target == min(cat$mean_target)), c(paste(col_name,suffix, sep=''))]
+    print("........................................................")
+    print('Highest Target Mean levels (first 20 detail levels or all) in ')
+    print(max_grp)
+    print("........................................................")
+    print(head(unique(dataset[which(dataset[[paste(col_name,suffix, sep='')]] == max_grp), ][col_name]),20))
+    print("........................................................")
+    print('Lowest Target Mean levels  (first 20 detail levels or all) in ')
+    print(min_grp)
+    print("........................................................")
+    print(head(unique(dataset[which(dataset[[paste(col_name,suffix, sep='')]] == min_grp), ][col_name]),20))
+}
+```
+
+DriverNumber and VehicleNumber
+
+Of course, number 1 has highest claim likehood. All grouping methods think so.
+
+```{r}
+print_group_content('drivernumber','_trgbin')
+```
+
+```{r}
+print_group_content('vehnumber','_trgbin')
+```
+
+
+ 
+  
+VehBodyTypecd
+
+Vans have more claims. Is it because of its dimensions?
+ 
+```{r}
+print_group_content('vehbodytypecd','_trgbin')
+```
+
+Model does not provide a lot of value in the claim prediction. It's just interesting to take a look in grouping.
+
+Clustring grouping just takes into account most popular models.
+Target encoding is more interseting. 
+Please note how percent of claims changes fromgroup to group.
+
+```{r}
+print_group_content('external_model','_kmeans')
+```
+Target encoding
+
+```{r}
+print_group_content('external_model','_trgbin')
+```
+
+
+
+```{r}
+plot_categorical('external_model_kmeans')
+```
+
+```{r}
+print_group_content('model','_kmeans')
+```
+Target encoding:
+```{r}
+print_group_content('model','_trgbin')
+```
+
+
+```{r}
+plot_categorical('model_kmeans')
+```
+
+```{r}
+plot_categorical('model_trgbin')
+```
+
+
+Acci_last_infractionage
+
+Targeting encoding and clustering have different results. I feel the targeting encoding is more reliable.
+ 
+```{r}
+print_group_content('acci_last_infractionage','_trgbin')
+```
+
+```{r}
+print_group_content('acci_last_infractionage','_hclust')
+```
+
+```{r}
+print_group_content('acci_last_infractionage','_kmeans')
+```
+
+
+Acci_last_convictionage
+
+```{r}
+print_group_content('acci_last_convictionage','_trgbin')
+```
+
+Viol_last_infractionage
+
+```{r}
+print_group_content('viol_last_infractionage','_trgbin')
+```
+
+
+Viol_last_convictionage
+
+```{r}
+print_group_content('viol_last_convictionage','_trgbin')
+```
+
+Interesting, the age of last accident and violation infraction and conviction are very close in grouping.
+
+In general, I would try to combine acci and viol features in the further analysis.
+
+Acci_pointschargedterm
+
+```{r}
+print_group_content('acci_pointschargedterm','_trgbin')
+```
+
+Viol_pointschargedterm
+
+```{r}
+print_group_content('viol_pointschargedterm','_trgbin')
+```
+
+```{r}
+print_group_content('viol_pointschargedterm','_trgbin')
+```
+
+
+Acci_driverpointsnumbercountterm
+
+```{r}
+print_group_content('acci_driverpointsnumbercountterm','_trgbin')
+```
+
+Viol_driverpointsnumbercountterm
+
+```{r}
+print_group_content('viol_driverpointsnumbercountterm','_trgbin')
+```
+
+Acci_infractioncdcountterm
+
+
+```{r}
+plot_categorical('acci_infractioncdcountterm')
+```
+
+
+
+
+6. Continuous features analysis
+
+Some features can be analyzed as categorical and as numerical
+
+
+```{r}
+categorical_numbers <- c(
+ 'vehnumber',
+ 'drivernumber',
+ 'viol_pointschargedterm',
+ 'acci_pointschargedterm',
+ 'viol_driverpointsnumbercountterm',
+ 'acci_driverpointsnumbercountterm',
+ 'viol_infractioncdcountterm',
+ 'acci_infractioncdcountterm',
+ 'viol_last_infractionage',
+ 'acci_last_infractionage',
+ 'viol_last_convictionage',
+ 'acci_last_convictionage',
+ 'external_engine',
+ 'enginesize',
+ 'enginehorsepower'
+)
+  
+dataset[categorical_numbers] <- sapply(dataset[categorical_numbers], as.numeric)
+features_to_explore <-c(continuous,categorical_numbers)
+```
+6.1 Continuous features analysis. The loop calculate mean per target value, runs Shapiro test to test normality (optinal because the further analysis do not depend on the feature normality) and Wilcox test to test dependence with the target. 
+
+```{r}
+continuous_stats_names <- c()
+continuous_stats_shapiro_pvalue <- c()
+continuous_stats_m0 <- c()
+continuous_stats_m1 <- c()
+continuous_stats_wilcox_pvalue <- c()
+```
+
+
+
+Some general statistics
+
+```{r}
+p <- as.data.frame(profiling_num(dataset, print_results = F, digits = 2))
+write.csv(file='results/profiling_numerical.csv', x=p)
+```
+
+Loop
+
+```{r}
+for (i in 1:length(features_to_explore)) { 
+  col_name <- features_to_explore[i]
+  continuous_stats_names[i] <- col_name
+  s <- shapiro.test(dataset[sample(nrow(dataset), 5000), col_name])
+  continuous_stats_shapiro_pvalue[i] <- s$p.value
+  HasClaim <- dataset[(dataset[[target]] == '1'),col_name]
+  continuous_stats_m1[i] <- mean(HasClaim)
+
+  NoClaim <- dataset[(dataset[[target]] == '0'),col_name]
+  continuous_stats_m0[i] <- mean(NoClaim)
+
+  w <- wilcox.test(HasClaim, NoClaim)
+  continuous_stats_wilcox_pvalue[i] <- w$p.value
+
+}
+```
+
+6.2 Finalizing our finding in a table
+
+```{r}
+continuous_features_stats <- data.frame(continuous_stats_names,continuous_stats_shapiro_pvalue,continuous_stats_m0,continuous_stats_m1,continuous_stats_wilcox_pvalue)
+names(continuous_features_stats) <- c('Feature', 'ShapiroPvalue', 'Mean0','Mean1','WilcoxPvalue')
+write.csv(file='results/continuous_features_stats.csv', x=continuous_features_stats)
+
+```
+
+6.3 Not Significant Continuous Features
+```{r}
+print(continuous_features_stats[which(continuous_features_stats$WilcoxPvalue >=0.05), ])
+```
+
+6.4 Significant Continuous Features
+
+```{r}
+print(continuous_features_stats[which(continuous_features_stats$WilcoxPvalue < 0.05), ])
+```
+
+6.2 Visualization functions
+```{r}
+plot_continuous <- function (col_name) {
+  HasClaim <- dataset[[target]]
+  p1 <- ggplot(dataset, aes(x = dataset[[col_name]], fill=HasClaim)) +
+  geom_histogram(bins=100) +
+  labs(x = col_name, y = 'Count', title = paste("Histogram of", col_name))
+
+  p2 <- ggplot(dataset, aes(x = dataset[[col_name]], col=HasClaim)) +
+  geom_density() + 
+  labs(x = col_name, y = 'Density', title = paste("Density of", col_name))
+
+  p3 <- ggplot(dataset, aes(x=target, y=dataset[[col_name]], col=HasClaim)) +
+  geom_boxplot() +
+  theme(legend.position = "none") +
+  labs(y = col_name, title = paste("Box Plot of", col_name, "with target"))
+
+  vec <- dataset[[col_name]]
+  y <- quantile(vec[!is.na(vec)], c(0.25, 0.75))
+  x <- qnorm(c(0.25, 0.75))
+  slope <- diff(y)/diff(x)
+  int <- y[1L] - slope * x[1L]
+
+  p4 <- ggplot(dataset, aes(sample = dataset[[col_name]], col='red')) + 
+  stat_qq() + 
+  geom_abline(slope = slope, intercept = int) +
+  theme(legend.position = "none") +
+  labs(y = col_name, title = paste("QQ Plot of", col_name))
+
+  
+  multiplot(p1,p2,p3,p4, cols=2)
+}
+
+
+plot_categorical_add <- function(col_name) {
+  
+  p1 = bayesian_plot(data=dataset, input=col_name, target=target)
+  p2 = cross_plot(data=dataset, str_input=col_name, str_target=target)
+  multiplot(p1,p2, cols=1)
+}
+```
+
+Driver Age has most visible difference between Claim and No Claim dependency 
+
+Driver Age
+
+```{r}
+plot_continuous('driverage')
+```
+
+The rest is just for information.
+
+No one has normal distribution but because I am going to use a boosted tree model it is not a big deal.
+The features I analyzed as categorical (categorical_numbers) are indeed better to consider categorical. Excet, maybe, EngineSize and EngineHorsePower. But in both cases the dependence with claims is low.
+
+
+Model Score
+```{r}
+plot_continuous('modelscore')
+```
+
+
+Rating value
+
+```{r}
+plot_continuous('ratingvalue')
+```
+
+
+
+
+Vehicle Age
+
+
+```{r}
+plot_continuous('vehicleage')
+```
+
+Have License at Age
+
+```{r}
+plot_continuous('havelicenseage')
+```
+
+MVR Status Age
+
+```{r}
+plot_continuous('mvrstatusage')
+```
+
+
+
+Odometer Reading 
+
+```{r}
+plot_continuous('odometerreading')
+```
+
+
+vehicle Height
+
+```{r}
+plot_continuous('external_height_in')
+```
+
+
+Estimated Annual Distance
+
+
+```{r}
+plot_continuous('estimatedannualdistance')
+```
+
+
+Vehicle Number
+
+```{r}
+plot_continuous('vehnumber')
+```
+
+
+Driver Number
+
+```{r}
+plot_continuous('drivernumber')
+```
+
+Engine Size
+
+```{r}
+plot_continuous('enginesize')
+```
+
+Engine Horse Power
+
+```{r}
+plot_continuous('enginehorsepower')
+```

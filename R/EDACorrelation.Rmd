@@ -1,0 +1,185 @@
+---
+title: "EDA Correlation"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+  word_document: default
+---
+
+Correlation matrix is a  comprehensive overview of our feature space. 
+It shows whether two features are connected so that one changes with a predictable trend if you change the other. The closer this coefficient is to zero the weaker is the correlation. Both 1 and -1 are the ideal cases of perfect correlation and anti-correlation.
+
+
+
+1.Data load and preparation. For the purpose of this plot we will recode  categorical features as integers. 
+
+```{r}
+#
+dataset <- read.csv('data/fdata_v1_trgencd.csv',stringsAsFactors = FALSE )
+#spaces
+dataset <- data.frame(lapply(dataset, trimws), stringsAsFactors = FALSE)
+
+target <- 'hasclaim'
+continuous <- c( 
+ 'modelscore',
+ 'external_length_in',
+ 'external_width_in',
+ 'external_height_in',
+ 'external_vehicleage',
+ 'vehicleage',
+ 'ratingvalue',
+ 'estimatedannualdistance',
+ 'odometerreading',
+ 'daysperweekdriven',
+ 'driverage',
+ 'havelicenseage',
+ 'mvrstatusage',
+ 'garageterritory',
+ 'vehnumber',
+ 'drivernumber',
+ 'viol_pointschargedterm',
+ 'acci_pointschargedterm',
+ 'viol_driverpointsnumbercountterm',
+ 'acci_driverpointsnumbercountterm',
+ 'viol_infractioncdcountterm',
+ 'acci_infractioncdcountterm',
+ 'viol_last_infractionage',
+ 'acci_last_infractionage',
+ 'viol_last_convictionage',
+ 'acci_last_convictionage',
+ 'external_engine',
+ 'enginesize',
+ 'enginehorsepower',
+ 'external_make_encd',
+ 'external_model_encd',
+ 'manufacturer_encd',
+ 'model_encd',
+ 'registrationstateprovcd_encd',
+ 'vehbodytypecd_encd',
+ 'performancecd_encd',
+ 'restraintcd_encd',
+ 'antitheftcd_encd',
+ 'enginecylinders_encd',
+ 'vehusecd_encd',
+ 'classcd_encd',
+ 'carpoolind_encd',
+ 'daylightrunninglightsind_encd',
+ 'passiveseatbeltind_encd',
+ 'programtypecd_encd',
+ 'driverstatuscd_encd',
+ 'licensedstateprovcd_encd',
+ 'relationshiptoinsuredcd_encd',
+ 'scholasticdiscountind_encd',
+ 'mvrstatus_encd',
+ 'maturedriverind_encd',
+ 'drivertrainingind_encd',
+ 'gooddriverind_encd',
+ 'accidentpreventioncourseind_encd',
+ 'persontypecd_encd',
+ 'gendercd_encd',
+ 'maritalstatuscd_encd',
+ 'occupationclasscd_encd')
+
+
+dataset[continuous] <- sapply(dataset[continuous], as.numeric)
+```
+
+2. Libraries
+```{r}
+library(dplyr)
+library(corrplot)
+
+```
+
+3. Correlation matrix
+
+```{r}
+dataset[continuous] %>%
+  cor(use="complete.obs", method = "spearman") %>%
+  corrplot(type="lower", tl.col = "black",  diag=FALSE)
+```
+
+In this kind of plot we want to look for the bright, large circles which immediately 
+show the strong correlations (size and shading depends on the absolute values of the 
+coefficients; colour depends on direction). Anything that you would have to squint to see is usually not worth seeing.
+
+4. Let's reduce the set of features to most correlated and our plot will be easier to read and more informative.
+
+```{r}
+v_set <- c(
+ 'hasclaim',    
+ 'external_vehicleage',
+ 'vehicleage',
+ 'external_length_in',
+ 'external_width_in',
+ 'external_height_in',
+ 'external_engine',
+ 'enginesize',
+ 'enginehorsepower',
+ 'antitheftcd_encd',
+ 'enginecylinders_encd',
+ 'restraintcd_encd',
+ 'passiveseatbeltind_encd',
+ 'vehbodytypecd_encd',
+ 'manufacturer_encd',
+ 'model_encd',
+ 'external_make_encd',
+ 'external_model_encd'
+ )
+dataset[v_set] <- sapply(dataset[v_set], as.numeric)
+dataset[v_set] %>%
+  cor(use="complete.obs", method = "spearman") %>%
+  corrplot(type="lower", tl.col = "black",  diag=FALSE)
+```
+
+```{r}
+mvr_set <- c(
+ 'hasclaim',  
+ 'mvrstatusage',
+ 'mvrstatus_encd',
+ 'viol_pointschargedterm',
+ 'acci_pointschargedterm',
+ 'viol_driverpointsnumbercountterm',
+ 'acci_driverpointsnumbercountterm',
+ 'viol_infractioncdcountterm',
+ 'acci_infractioncdcountterm',
+ 'viol_last_infractionage',
+ 'acci_last_infractionage',
+ 'viol_last_convictionage',
+ 'acci_last_convictionage')
+dataset[mvr_set] <- sapply(dataset[mvr_set], as.numeric)
+dataset[mvr_set] %>%
+  cor(use="complete.obs", method = "spearman") %>%
+  corrplot(type="lower", tl.col = "black",  diag=FALSE)
+```
+
+
+```{r}
+o_set <- c(
+ 'hasclaim',
+ 'estimatedannualdistance',
+ 'odometerreading',
+ 'daysperweekdriven',
+ 'driverage',
+ 'drivernumber',
+ 'vehusecd_encd',
+ 'classcd_encd',
+ 'carpoolind_encd',
+ 'daylightrunninglightsind_encd',
+ 'driverstatuscd_encd',
+ 'relationshiptoinsuredcd_encd',
+ 'scholasticdiscountind_encd',
+ 'drivertrainingind_encd',
+ 'gooddriverind_encd',
+ 'accidentpreventioncourseind_encd')
+dataset[o_set] <- sapply(dataset[o_set], as.numeric)
+dataset[o_set] %>%
+  cor(use="complete.obs", method = "spearman") %>%
+  corrplot(type="lower", tl.col = "black",  diag=FALSE)
+```
+
+
+Target (hasclaim) is not correlated with any feature. Some of the correlations are expected. Like  length_in, height_in and width_in with model and vehicle dimensions.
+
+Accidentpreventioncourseind is a part of drivertraingind. And they are correlated with enginetype.
